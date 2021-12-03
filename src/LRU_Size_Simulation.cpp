@@ -1,7 +1,7 @@
 #include "../include/RAM.h"
 #include <iostream>
 
-LRU_Size_Simulation::LRU_Size_Simulation(uint64_t size, uint32_t page): RAM(size, page) {
+LRU_Size_Simulation::LRU_Size_Simulation(uint64_t size, uint32_t p_size): RAM(size, p_size) {
 	num_pages = memory_size / page_size;
 
 	for (int i = 0; i < num_pages; i++) {
@@ -26,6 +26,7 @@ void LRU_Size_Simulation::memory_access(uint64_t virtual_addr) {
 	if (page_table.count(virtual_addr) > 0 && page_table[virtual_addr]->get_virt() == virtual_addr) {
 		page_faults[moveFrontQueue(page_table[virtual_addr]->last_touched(), ts)]++; // move this page to the front of the LRU queue
 		page_table[virtual_addr]->access_page(ts); // this is a memory access to the page stored in memory (it should update timestamp)
+		return true;
 	} else {
 		// if there are free pages then use one of them
 		page_faults[num_pages]++;
@@ -41,7 +42,7 @@ void LRU_Size_Simulation::memory_access(uint64_t virtual_addr) {
 		page_table[p->get_virt()] = p;
 		LRU_queue.insert(ts, p->get_virt());
 		assert(p->get_virt() ==  virtual_addr);
-		//page_faults++;
+		return false; // the page was not even in the largest memory size
 	}
 }
 
@@ -49,14 +50,14 @@ Page *LRU_Size_Simulation::evict_oldest() {
 	//unmap virtual address
 	uint64_t virt = LRU_queue.getLast();
 	LRU_queue.remove(LRU_queue.getWeight()-1);
-    return page_table[virt];
+	return page_table[virt];
 }
 
 size_t LRU_Size_Simulation::moveFrontQueue(uint64_t oldts, uint64_t newts) {
 	std::pair<size_t, uint64_t> found = LRU_queue.find(oldts);
 	
-    LRU_queue.remove(found.first);
-    LRU_queue.insert(newts, found.second);
+	LRU_queue.remove(found.first);
+	LRU_queue.insert(newts, found.second);
 	return found.first;
 }
 

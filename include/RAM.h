@@ -17,7 +17,6 @@ private:
 	uint64_t virtual_addr = 0;
 	uint64_t physical_addr;
 	bool free  = true;
-	bool R     = true; // boolean for clock algorithm
 public:
 	Page(uint64_t phy) : physical_addr(phy) {}
 
@@ -27,9 +26,6 @@ public:
 	uint64_t inline get_virt() {
 		return virtual_addr;
 	}
-	bool inline get_R() {
-		return R;
-	}
 	uint64_t inline last_touched() {
 		return last_accessed;
 	}
@@ -37,7 +33,6 @@ public:
 		virtual_addr = v_addr;
 		last_accessed = timestamp;
 		free = false;
-		R  = true;
 	}
 	void inline evict_page() {
 		virtual_addr = 0;
@@ -45,10 +40,6 @@ public:
 	}
 	void inline access_page(uint64_t timestamp) {
 		last_accessed = timestamp;
-		R = true;
-	}
-	void inline clock_touch() {
-		R = false;
 	}
 	bool inline is_free() {
 		return free;
@@ -62,9 +53,9 @@ protected:
 	uint32_t page_faults = 0;
 	uint64_t access_number = 0;
 public:
-	RAM(uint64_t size, uint32_t page): memory_size(size), page_size(page) {}
+	RAM(uint64_t size, uint32_t p_size): memory_size(size), page_size(p_size) {}
 	virtual ~RAM() {};
-	virtual void memory_access(uint64_t virtual_addr) = 0;
+	virtual bool memory_access(uint64_t virtual_addr) = 0;
 	uint64_t inline get_memory_size() {return memory_size;}
 	uint32_t inline get_page_size() {return page_size;}
 	void print() {
@@ -83,7 +74,7 @@ public:
  * for every memory size.
  */
 class LRU_Size_Simulation : public RAM {
-private:
+protected:
 	std::list<Page *> free_pages;
 	std::vector<Page *> memory;
 	std::vector<uint64_t> page_faults;
@@ -91,13 +82,28 @@ private:
 	OSTreeHead LRU_queue;
 	std::unordered_map<uint64_t, Page *> page_table;
 public:
-	LRU_Size_Simulation(uint64_t size, uint32_t page);
+	LRU_Size_Simulation(uint64_t size, uint32_t p_size);
 	~LRU_Size_Simulation();
-	void memory_access(uint64_t virtual_addr);
+	bool memory_access(uint64_t virtual_addr);
 	Page *evict_oldest();
 	size_t moveFrontQueue(uint64_t curts, uint64_t newts);
 	void printSuccessFunction();
 	std::vector<uint64_t> getSuccessFunction();
+};
+
+/*
+ * This simulator is fed a sequence of memory access and a box profile
+ * and simulates LRU across the box profile.
+ */
+class LRU_BOX_Simulation : public LRU_Size_Simulation {
+protected:
+	size_t box_size_bound;     // maximum pages that can fit in this box
+	size_t pages_present  = 0; // how many pages in the current box have pages in them
+public:
+	LRU_BOX_Simulation(uint64_t size, uint32_t p_size, uint32_t min_box, uint32_t max_box);
+	~LRU_BOX_Simulation();
+	bool memory_access(uint64_t virtual_addr); 
+	void set_box_size(size_t size);
 };
 
 #endif
